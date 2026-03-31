@@ -1,0 +1,33 @@
+name: Sync New Requests to Private Repo
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  sync-to-private:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue in private repo
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.MAESTRO_PAT }}
+          script: |
+            const issue = context.payload.issue;
+
+            // Create issue in private repo
+            await github.rest.issues.create({
+              owner: 'joinmaestro',
+              repo: 'maestro',
+              title: issue.title,
+              body: `**Submitted via Coach Hub**\n\n${issue.body}\n\n---\n_Public issue: ${issue.html_url}_`,
+              labels: ['coach-visible']
+            });
+
+            // Add comment to public issue
+            await github.rest.issues.createComment({
+              owner: 'joinmaestro',
+              repo: 'coach-hub',
+              issue_number: issue.number,
+              body: '✅ Request received! We\'ll update this ticket as we make progress.'
+            });
