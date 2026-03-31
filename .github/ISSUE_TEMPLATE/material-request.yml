@@ -1,0 +1,82 @@
+name: "Request Materials"
+description: "Request study guides, homework, assessments, or other materials"
+title: "[Request] "
+labels: ["new-request"]
+body:
+  - type: input
+    id: coach-name
+    attributes:
+      label: Coach Name
+      placeholder: "e.g., Jessica Harris"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: grade-level
+    attributes:
+      label: Grade Level
+      options:
+        - 5th Grade
+        - 6th Grade
+        - 7th Grade
+        - 8th Grade
+        - 9th Grade
+        - 10th Grade
+        - 11th Grade
+        - 12th Grade
+        - Multiple Grades
+    validations:
+      required: true
+
+  - type: dropdown
+    id: subject
+    attributes:
+      label: Subject
+      options:
+        - Math
+        - Science
+        - Algebra I
+    validations:
+      required: true
+
+  - type: dropdown
+    id: material-type
+    attributes:
+      label: Material Type
+      options:
+        - Study Guide
+        - Homework / Worksheet
+        - Assessment / Test
+        - STAAR Practice
+        - Reteach Package
+        - Exit Tickets
+        - Full Unit Package
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: topic
+    attributes:
+      label: Topic / TEKS
+      description: "What topic or TEKS standards should this cover?"
+      placeholder: "e.g., Fractions 5.3A-5.3L, or Volume & Surface Area"
+    validations:
+      required: true
+
+  - type: input
+    id: due-date
+    attributes:
+      label: When do you need this?
+      placeholder: "e.g., March 15, or ASAP, or Next week"
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional Details
+      description: "Any other information that would help us create the right materials?"
+      placeholder: "e.g., Focus on word problems, students struggled with X, need answer key..."
+    validations:
+      required: false
