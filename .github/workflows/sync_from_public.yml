@@ -8,21 +8,43 @@ jobs:
   sync-to-private:
     runs-on: ubuntu-latest
     steps:
-      - name: Create issue in private repo
+      - name: Create issue in private repo and add to project
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.MAESTRO_PAT }}
           script: |
             const issue = context.payload.issue;
 
-            // Create issue in private repo
-            await github.rest.issues.create({
+            // Create issue in private repo with assignee
+            const newIssue = await github.rest.issues.create({
               owner: 'joinmaestro',
               repo: 'maestro',
               title: issue.title,
               body: `**Submitted via Coach Hub**\n\n${issue.body}\n\n---\n_Public issue: ${issue.html_url}_`,
-              labels: ['public']
+              labels: ['public'],
+              assignees: ['tarlanfaal']
             });
+
+            // Assign tarlanfaal to the public issue too
+            await github.rest.issues.addAssignees({
+              owner: 'joinmaestro',
+              repo: 'coach-hub',
+              issue_number: issue.number,
+              assignees: ['tarlanfaal']
+            });
+
+            // Add to project board #4
+            const addToProject = `
+              mutation {
+                addProjectV2ItemById(input: {
+                  projectId: "PVT_kwDODjTikM4BTWpN"
+                  contentId: "${issue.node_id}"
+                }) {
+                  item { id }
+                }
+              }
+            `;
+            await github.graphql(addToProject);
 
             // Add comment to public issue
             await github.rest.issues.createComment({
