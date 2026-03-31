@@ -44,7 +44,30 @@ jobs:
                 }
               }
             `;
-            await github.graphql(addToProject);
+            const projectResult = await github.graphql(addToProject);
+            const itemId = projectResult.addProjectV2ItemById.item.id;
+
+            // Parse due date from issue body (format: MM-DD-YYYY)
+            const dueDateMatch = issue.body.match(/### Due Date\s*\n\s*(\d{2}-\d{2}-\d{4})/);
+            if (dueDateMatch) {
+              const [month, day, year] = dueDateMatch[1].split('-');
+              const isoDate = `${year}-${month}-${day}`;
+
+              // Set due date on project item
+              const setDueDate = `
+                mutation {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: "PVT_kwDODjTikM4BTWpN"
+                    itemId: "${itemId}"
+                    fieldId: "PVTF_lADODjTikM4BTWpNzhAnpV8"
+                    value: { date: "${isoDate}" }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }
+              `;
+              await github.graphql(setDueDate);
+            }
 
             // Add comment to public issue
             await github.rest.issues.createComment({

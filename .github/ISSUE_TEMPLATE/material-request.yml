@@ -67,8 +67,9 @@ body:
   - type: input
     id: due-date
     attributes:
-      label: When do you need this?
-      placeholder: "e.g., March 15, or ASAP, or Next week"
+      label: Due Date
+      description: "Use format: MM-DD-YYYY (e.g., 04-15-2026)"
+      placeholder: "04-15-2026"
     validations:
       required: true
 
