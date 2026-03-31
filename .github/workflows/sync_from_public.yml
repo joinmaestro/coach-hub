@@ -90,7 +90,8 @@ jobs:
               const skipPatterns = [
                 'Request received!',
                 'Materials complete!',
-                '**Comment from coach-hub:**'
+                'Comment from coach-hub:',
+                'Comment from maestro:'
               ];
               if (skipPatterns.some(p => comment.body.includes(p))) {
                 console.log('Skipping automated comment');
