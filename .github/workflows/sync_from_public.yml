@@ -1,4 +1,4 @@
-name: Sync New Requests to Private Repo
+name: Sync to Maestro
 
 on:
   issues:
@@ -15,100 +15,99 @@ jobs:
         with:
           github-token: ${{ secrets.MAESTRO_PAT }}
           script: |
+            // Constants
+            const PRIVATE_REPO = { owner: 'joinmaestro', repo: 'maestro' };
+            const PUBLIC_REPO = { owner: 'joinmaestro', repo: 'coach-hub' };
+            const PROJECT_ID = 'PVT_kwDODjTikM4BTWpN';
+            const DUE_DATE_FIELD_ID = 'PVTF_lADODjTikM4BTWpNzhAnpV8';
+            const ASSIGNEE = 'tarlanfaal';
+
             const issue = context.payload.issue;
             const action = context.payload.action;
+            const comment = context.payload.comment;
 
+            // Handle: New issue opened in coach-hub
             if (action === 'opened') {
-              // Skip if this issue was synced FROM maestro (has tracking ID)
-              if (issue.body && issue.body.includes('_Tracking ID:')) {
-                console.log('Skipping - this issue was synced from maestro');
+              // Skip if synced from maestro (has tracking ID)
+              if (issue.body?.includes('_Tracking ID:')) {
+                console.log('Skipping - synced from maestro');
                 return;
               }
 
-              // Create issue in private repo with assignee
-              const newIssue = await github.rest.issues.create({
-                owner: 'joinmaestro',
-                repo: 'maestro',
+              // Create issue in private repo
+              await github.rest.issues.create({
+                ...PRIVATE_REPO,
                 title: issue.title,
                 body: `**Submitted via Coach Hub**\n\n${issue.body}\n\n---\n_Public issue: ${issue.html_url}_`,
                 labels: ['public'],
-                assignees: ['tarlanfaal']
+                assignees: [ASSIGNEE]
               });
 
-              // Assign tarlanfaal to the public issue too
+              // Assign to public issue
               await github.rest.issues.addAssignees({
-                owner: 'joinmaestro',
-                repo: 'coach-hub',
+                ...PUBLIC_REPO,
                 issue_number: issue.number,
-                assignees: ['tarlanfaal']
+                assignees: [ASSIGNEE]
               });
 
-              // Add to project board #4
-              const addToProject = `
+              // Add to project board
+              const addResult = await github.graphql(`
                 mutation {
                   addProjectV2ItemById(input: {
-                    projectId: "PVT_kwDODjTikM4BTWpN"
+                    projectId: "${PROJECT_ID}"
                     contentId: "${issue.node_id}"
-                  }) {
-                    item { id }
-                  }
+                  }) { item { id } }
                 }
-              `;
-              const projectResult = await github.graphql(addToProject);
-              const itemId = projectResult.addProjectV2ItemById.item.id;
+              `);
 
-              // Parse due date from issue body (format: MM-DD-YYYY)
-              const dueDateMatch = issue.body.match(/### Due Date\s*\n\s*(\d{2}-\d{2}-\d{4})/);
+              // Parse and set due date (MM-DD-YYYY format)
+              const dueDateMatch = issue.body?.match(/### Due Date\s*\n\s*(\d{2})-(\d{2})-(\d{4})/);
               if (dueDateMatch) {
-                const [month, day, year] = dueDateMatch[1].split('-');
-                const isoDate = `${year}-${month}-${day}`;
-
-                // Set due date on project item
-                const setDueDate = `
+                const [_, month, day, year] = dueDateMatch;
+                await github.graphql(`
                   mutation {
                     updateProjectV2ItemFieldValue(input: {
-                      projectId: "PVT_kwDODjTikM4BTWpN"
-                      itemId: "${itemId}"
-                      fieldId: "PVTF_lADODjTikM4BTWpNzhAnpV8"
-                      value: { date: "${isoDate}" }
-                    }) {
-                      projectV2Item { id }
-                    }
+                      projectId: "${PROJECT_ID}"
+                      itemId: "${addResult.addProjectV2ItemById.item.id}"
+                      fieldId: "${DUE_DATE_FIELD_ID}"
+                      value: { date: "${year}-${month}-${day}" }
+                    }) { projectV2Item { id } }
                   }
-                `;
-                await github.graphql(setDueDate);
+                `);
               }
 
-              // Add comment to public issue
+              // Confirm receipt
               await github.rest.issues.createComment({
-                owner: 'joinmaestro',
-                repo: 'coach-hub',
+                ...PUBLIC_REPO,
                 issue_number: issue.number,
                 body: '✅ Request received! We\'ll update this ticket as we make progress.'
               });
+            }
 
-            } else if (action === 'created' && context.payload.comment) {
-              // Sync comment to private repo
-              const comment = context.payload.comment;
-
-              // Skip comments from the workflow itself
-              if (comment.body.includes('Request received!') || comment.body.includes('Materials complete!')) {
+            // Handle: Comment syncing
+            else if (action === 'created' && comment) {
+              // Skip automated/synced comments to prevent loops
+              const skipPatterns = [
+                'Request received!',
+                'Materials complete!',
+                '**Comment from coach-hub:**'
+              ];
+              if (skipPatterns.some(p => comment.body.includes(p))) {
                 console.log('Skipping automated comment');
                 return;
               }
 
-              // Find the linked maestro issue
+              // Find linked maestro issue
               const search = await github.rest.search.issuesAndPullRequests({
-                q: `repo:joinmaestro/maestro is:issue "${issue.html_url}" in:body`
+                q: `repo:${PRIVATE_REPO.owner}/${PRIVATE_REPO.repo} is:issue "${issue.html_url}" in:body`
               });
 
               if (search.data.total_count > 0) {
                 await github.rest.issues.createComment({
-                  owner: 'joinmaestro',
-                  repo: 'maestro',
+                  ...PRIVATE_REPO,
                   issue_number: search.data.items[0].number,
                   body: `**Comment from coach-hub:**\n\n${comment.body}`
                 });
-                console.log(`Synced comment to maestro issue #${search.data.items[0].number}`);
+                console.log(`Synced comment to maestro #${search.data.items[0].number}`);
               }
             }
