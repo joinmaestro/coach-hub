@@ -15,6 +15,12 @@ jobs:
           script: |
             const issue = context.payload.issue;
 
+            // Skip if this issue was synced FROM maestro (has tracking ID)
+            if (issue.body && issue.body.includes('_Tracking ID:')) {
+              console.log('Skipping - this issue was synced from maestro');
+              return;
+            }
+
             // Create issue in private repo with assignee
             const newIssue = await github.rest.issues.create({
               owner: 'joinmaestro',
