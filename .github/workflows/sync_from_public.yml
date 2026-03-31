@@ -21,7 +21,7 @@ jobs:
               repo: 'maestro',
               title: issue.title,
               body: `**Submitted via Coach Hub**\n\n${issue.body}\n\n---\n_Public issue: ${issue.html_url}_`,
-              labels: ['coach-visible']
+              labels: ['public']
             });
 
             // Add comment to public issue
